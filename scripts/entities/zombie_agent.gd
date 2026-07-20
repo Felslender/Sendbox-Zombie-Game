@@ -1,7 +1,7 @@
 class_name ZombieAgent
 extends AgentBase
 
-enum State { WANDER, CHASE, ATTACK, NEUTRALIZED }
+enum State { WANDER, CHASE, ATTACK, BREAK_BARRICADE, NEUTRALIZED }
 
 var state := State.WANDER
 var health := GameConfig.ZOMBIE_HEALTH
@@ -9,6 +9,7 @@ var target
 var decision_timer := 0.0
 var wander_timer := 0.0
 var attack_flash := 0.0
+var attack_timer := 0.0
 
 func setup(manager, navigation: NavigationService, start_position: Vector2) -> void:
 	entity_kind = "zombie"
@@ -25,12 +26,27 @@ func _physics_process(delta: float) -> void:
 	decision_timer -= delta
 	wander_timer -= delta
 	attack_flash = maxf(0.0, attack_flash - delta)
+	attack_timer -= delta
 	if decision_timer <= 0.0:
 		_decide()
 		decision_timer = randf_range(0.34, 0.52)
 
 	if target != null and _is_valid_target(target):
 		var distance := global_position.distance_to(target.global_position)
+		if target.entity_kind == "barricade":
+			state = State.BREAK_BARRICADE
+			if distance <= GameConfig.BARRICADE_ZOMBIE_ATTACK_RANGE:
+				stop_moving()
+				if attack_timer <= 0.0:
+					attack_timer = GameConfig.BARRICADE_ZOMBIE_ATTACK_COOLDOWN
+					target.take_damage(GameConfig.BARRICADE_ZOMBIE_DAMAGE)
+					attack_flash = 0.2
+					queue_redraw()
+			else:
+				if route_refresh_timer <= 0.0 or current_path.is_empty():
+					set_destination(target.global_position, true)
+				follow_path(delta)
+			return
 		if distance <= GameConfig.ZOMBIE_ATTACK_RANGE:
 			state = State.ATTACK
 			stop_moving()
@@ -65,15 +81,24 @@ func take_damage(amount: float) -> void:
 
 func _decide() -> void:
 	if not _is_valid_target(target):
-		target = entity_manager.find_nearest_healthy(global_position, GameConfig.ZOMBIE_SIGHT_RADIUS)
+		var civilian = entity_manager.find_nearest_healthy(global_position, GameConfig.ZOMBIE_SIGHT_RADIUS)
+		var barricade = entity_manager.find_nearest(global_position, 95.0, "barricade", self)
+		if barricade != null and (civilian == null or global_position.distance_to(barricade.global_position) <= 70.0 or current_path.is_empty()):
+			target = barricade
+		else:
+			target = civilian
 	if target != null:
-		state = State.CHASE
+		state = State.BREAK_BARRICADE if target.entity_kind == "barricade" else State.CHASE
 		set_destination(target.global_position, true)
 	elif route_refresh_timer <= 0.0:
 		_choose_wander_destination()
 
 func _is_valid_target(candidate) -> bool:
-	return candidate != null and is_instance_valid(candidate) and not candidate.is_queued_for_deletion() and not candidate.is_infected
+	if candidate == null or not is_instance_valid(candidate) or candidate.is_queued_for_deletion():
+		return false
+	if candidate.entity_kind == "barricade":
+		return candidate.health > 0.0
+	return not candidate.is_infected
 
 func _choose_wander_destination() -> void:
 	wander_timer = randf_range(2.2, 5.0)

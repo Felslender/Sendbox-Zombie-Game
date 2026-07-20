@@ -2,6 +2,7 @@ class_name EntityManager
 extends Node2D
 
 const CIVILIAN_SCRIPT := preload("res://scripts/entities/civilian_agent.gd")
+const BARRICADE_SCRIPT := preload("res://scripts/entities/barricade.gd")
 
 var navigation_service: NavigationService
 var events: SimulationEvents
@@ -9,6 +10,7 @@ var spatial_index := SpatialIndex.new()
 var civilians: Array = []
 var zombies: Array = []
 var police_units: Array = []
+var barricades: Array = []
 var evacuation_system: EvacuationSystem
 var rescued_count := 0
 var metrics_timer := 0.0
@@ -40,12 +42,16 @@ func transform_civilian(civilian) -> void:
 	_unregister(civilian, civilians)
 	civilian.state = CivilianAgent.State.REMOVED
 	civilian.queue_free()
+	spawn_zombie(spawn_position)
+
+func spawn_zombie(at_position: Vector2):
 	var zombie_script = load("res://scripts/entities/zombie_agent.gd")
 	var zombie = zombie_script.new()
 	add_child(zombie)
-	zombie.setup(self, navigation_service, spawn_position)
+	zombie.setup(self, navigation_service, at_position)
 	zombies.append(zombie)
 	spatial_index.add(zombie)
+	return zombie
 
 func spawn_police(at_position: Vector2):
 	var police_script = load("res://scripts/entities/police_agent.gd")
@@ -55,6 +61,32 @@ func spawn_police(at_position: Vector2):
 	police_units.append(officer)
 	spatial_index.add(officer)
 	return officer
+
+func can_place_barricade(at_position: Vector2, vertical: bool) -> bool:
+	if barricades.size() >= GameConfig.BARRICADE_MAX_COUNT:
+		return false
+	var size := GameConfig.BARRICADE_SIZE
+	if vertical:
+		size = Vector2(size.y, size.x)
+	return navigation_service.can_place_dynamic_obstacle(Rect2(at_position - size * 0.5, size))
+
+func spawn_barricade(at_position: Vector2, vertical: bool):
+	if not can_place_barricade(at_position, vertical):
+		return null
+	var barricade = BARRICADE_SCRIPT.new()
+	add_child(barricade)
+	if not barricade.setup(self, navigation_service, at_position, vertical):
+		barricade.queue_free()
+		return null
+	barricades.append(barricade)
+	spatial_index.add(barricade)
+	return barricade
+
+func remove_barricade(barricade) -> void:
+	if not is_instance_valid(barricade) or barricade.is_queued_for_deletion():
+		return
+	_unregister(barricade, barricades)
+	barricade.queue_free()
 
 func remove_zombie(zombie) -> void:
 	if not is_instance_valid(zombie) or zombie.is_queued_for_deletion():
@@ -121,6 +153,8 @@ func publish_metrics(simulation_time: float) -> void:
 		"zombies": zombies.size(),
 		"rescued": rescued_count,
 		"defense": police_units.size(),
+		"barricades": barricades.size(),
+		"panic": _average_panic(),
 		"time": simulation_time,
 		"fps": Engine.get_frames_per_second(),
 	}
@@ -136,3 +170,12 @@ func _cleanup_arrays() -> void:
 	civilians = civilians.filter(func(entity): return is_instance_valid(entity) and not entity.is_queued_for_deletion())
 	zombies = zombies.filter(func(entity): return is_instance_valid(entity) and not entity.is_queued_for_deletion())
 	police_units = police_units.filter(func(entity): return is_instance_valid(entity) and not entity.is_queued_for_deletion())
+	barricades = barricades.filter(func(entity): return is_instance_valid(entity) and not entity.is_queued_for_deletion())
+
+func _average_panic() -> float:
+	if civilians.is_empty():
+		return 0.0
+	var total := 0.0
+	for civilian in civilians:
+		total += civilian.panic_level
+	return total / float(civilians.size())

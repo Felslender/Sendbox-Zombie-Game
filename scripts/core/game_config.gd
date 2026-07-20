@@ -23,6 +23,18 @@ const POLICE_ATTACK_RANGE := 185.0
 const POLICE_DAMAGE := 34.0
 const POLICE_ATTACK_COOLDOWN := 0.7
 
+const BARRICADE_SIZE := Vector2(72.0, 24.0)
+const BARRICADE_HEALTH := 180.0
+const BARRICADE_MAX_COUNT := 8
+const BARRICADE_COOLDOWN := 1.2
+const BARRICADE_ZOMBIE_DAMAGE := 24.0
+const BARRICADE_ZOMBIE_ATTACK_RANGE := 46.0
+const BARRICADE_ZOMBIE_ATTACK_COOLDOWN := 0.72
+
+const PANIC_SPREAD_RADIUS := 105.0
+const PANIC_DECAY_PER_SECOND := 0.022
+const PANIC_GROUP_RADIUS := 78.0
+
 const GAS_RADIUS := 92.0
 const GAS_DURATION := 5.5
 const GAS_INFECTION_CHANCE := 0.82
@@ -44,6 +56,8 @@ const COLORS := {
 	"zombie": Color("#79d34d"),
 	"police": Color("#5b8cff"),
 	"evacuation": Color("#62e6b0"),
+	"barricade": Color("#d89b52"),
+	"panic": Color("#ff9e64"),
 	"building": Color("#27343d"),
 	"building_roof": Color("#354650"),
 	"road": Color("#303941"),

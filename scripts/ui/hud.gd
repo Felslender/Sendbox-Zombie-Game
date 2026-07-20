@@ -8,13 +8,17 @@ var feedback_label: Label
 var gas_button: Button
 var police_button: Button
 var evacuation_button: Button
+var barricade_button: Button
 var gas_cooldown_label: Label
 var police_cooldown_label: Label
 var evacuation_cooldown_label: Label
+var barricade_cooldown_label: Label
+var panic_label: Label
 var pause_button: Button
 var speed_buttons: Dictionary = {}
 var feedback_timer := 0.0
 var selected_tool := ""
+var barricade_count := 0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -34,9 +38,11 @@ func _process(delta: float) -> void:
 	var gas_remaining := placement_controller.cooldown_remaining("gas")
 	var police_remaining := placement_controller.cooldown_remaining("police")
 	var evacuation_remaining := placement_controller.cooldown_remaining("evacuation")
+	var barricade_remaining := placement_controller.cooldown_remaining("barricade")
 	gas_cooldown_label.text = "PRONTO" if gas_remaining <= 0.0 else "RECARGA  %.1fs" % gas_remaining
 	police_cooldown_label.text = "PRONTO" if police_remaining <= 0.0 else "REFORÇO  %.1fs" % police_remaining
 	evacuation_cooldown_label.text = "PRONTO" if evacuation_remaining <= 0.0 else "CONTATO  %.1fs" % evacuation_remaining
+	barricade_cooldown_label.text = "PRONTO · %d/%d" % [barricade_count, GameConfig.BARRICADE_MAX_COUNT] if barricade_remaining <= 0.0 else "CONSTRUINDO  %.1fs" % barricade_remaining
 	if feedback_timer > 0.0:
 		feedback_timer -= delta
 		if feedback_timer <= 0.0:
@@ -113,6 +119,8 @@ func _build_interface() -> void:
 	gas_cooldown_label = _make_label("PRONTO", 12, Color("#b9f45b"))
 	infection_column.add_child(gas_cooldown_label)
 	infection_column.add_child(_make_label("Raio: 92 m\nDuração: 5,5 s\nInfecção: 82%\nIncubação: ~7 s", 13, Color("#aab8ad")))
+	panic_label = _make_label("PÂNICO DA CIDADE  0%", 12, GameConfig.COLORS.panic)
+	infection_column.add_child(panic_label)
 	var spacer_left := Control.new()
 	spacer_left.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	infection_column.add_child(spacer_left)
@@ -145,6 +153,13 @@ func _build_interface() -> void:
 	evacuation_cooldown_label = _make_label("PRONTO", 12, Color("#62e6b0"))
 	defense_column.add_child(evacuation_cooldown_label)
 	defense_column.add_child(_make_label("Capacidade: 10 civis\nDuração: 55 s · Máx.: 2", 12, Color("#9bcaba")))
+	barricade_button = _make_button("▰  BARRICADA")
+	barricade_button.custom_minimum_size.y = 44
+	barricade_button.pressed.connect(func(): placement_controller.select_tool("barricade"))
+	defense_column.add_child(barricade_button)
+	barricade_cooldown_label = _make_label("PRONTO", 12, GameConfig.COLORS.barricade)
+	defense_column.add_child(barricade_cooldown_label)
+	defense_column.add_child(_make_label("Limite: 8 · Q para girar", 12, Color("#cbb08b")))
 	var spacer_right := Control.new()
 	spacer_right.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	defense_column.add_child(spacer_right)
@@ -174,12 +189,16 @@ func _on_metrics_changed(metrics: Dictionary) -> void:
 		metrics.healthy, metrics.infected, metrics.zombies, metrics.rescued,
 		metrics.defense, minutes, seconds, metrics.fps
 	]
+	panic_label.text = "PÂNICO DA CIDADE  %d%%" % roundi(metrics.panic * 100.0)
+	panic_label.add_theme_color_override("font_color", GameConfig.COLORS.panic.lerp(Color("#ff5f56"), metrics.panic))
+	barricade_count = metrics.barricades
 
 func _on_tool_changed(tool_name: String) -> void:
 	selected_tool = tool_name
 	gas_button.modulate = Color("#c9ff70") if tool_name == "gas" else Color.WHITE
 	police_button.modulate = Color("#8ab9ff") if tool_name == "police" else Color.WHITE
 	evacuation_button.modulate = Color("#75efbd") if tool_name == "evacuation" else Color.WHITE
+	barricade_button.modulate = Color("#efb76f") if tool_name == "barricade" else Color.WHITE
 
 func _show_feedback(message: String, is_error: bool) -> void:
 	if feedback_label == null:

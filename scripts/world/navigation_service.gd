@@ -4,6 +4,9 @@ extends Node
 var astar := AStarGrid2D.new()
 var map_size := Vector2.ZERO
 var cell_size := GameConfig.NAV_CELL_SIZE
+var static_solid_cells: Dictionary = {}
+var dynamic_cell_counts: Dictionary = {}
+var dynamic_obstacles: Dictionary = {}
 
 func setup(p_map_size: Vector2, obstacles: Array[Rect2]) -> void:
 	map_size = p_map_size
@@ -27,6 +30,7 @@ func setup(p_map_size: Vector2, obstacles: Array[Rect2]) -> void:
 			for x in range(start.x, finish.x + 1):
 				var cell := Vector2i(x, y)
 				if astar.is_in_boundsv(cell) and expanded.has_point(cell_to_world(cell)):
+					static_solid_cells[cell] = true
 					astar.set_point_solid(cell, true)
 
 func world_to_cell(world_position: Vector2) -> Vector2i:
@@ -82,3 +86,49 @@ func random_walkable_position() -> Vector2:
 
 func clamp_to_map(world_position: Vector2) -> Vector2:
 	return world_position.clamp(Vector2(16, 16), map_size - Vector2(16, 16))
+
+func can_place_dynamic_obstacle(world_rect: Rect2) -> bool:
+	if world_rect.position.x < 12.0 or world_rect.position.y < 12.0:
+		return false
+	if world_rect.end.x > map_size.x - 12.0 or world_rect.end.y > map_size.y - 12.0:
+		return false
+	var cells := _cells_for_rect(world_rect.grow(3.0))
+	if cells.is_empty():
+		return false
+	for cell in cells:
+		if static_solid_cells.has(cell) or dynamic_cell_counts.get(cell, 0) > 0:
+			return false
+	return true
+
+func add_dynamic_obstacle(obstacle_id: int, world_rect: Rect2) -> bool:
+	if dynamic_obstacles.has(obstacle_id) or not can_place_dynamic_obstacle(world_rect):
+		return false
+	var cells := _cells_for_rect(world_rect.grow(3.0))
+	dynamic_obstacles[obstacle_id] = cells
+	for cell in cells:
+		dynamic_cell_counts[cell] = dynamic_cell_counts.get(cell, 0) + 1
+		astar.set_point_solid(cell, true)
+	return true
+
+func remove_dynamic_obstacle(obstacle_id: int) -> void:
+	if not dynamic_obstacles.has(obstacle_id):
+		return
+	for cell in dynamic_obstacles[obstacle_id]:
+		var count: int = dynamic_cell_counts.get(cell, 0) - 1
+		if count <= 0:
+			dynamic_cell_counts.erase(cell)
+			astar.set_point_solid(cell, static_solid_cells.has(cell))
+		else:
+			dynamic_cell_counts[cell] = count
+	dynamic_obstacles.erase(obstacle_id)
+
+func _cells_for_rect(world_rect: Rect2) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	var start := world_to_cell(world_rect.position)
+	var finish := world_to_cell(world_rect.end)
+	for y in range(start.y, finish.y + 1):
+		for x in range(start.x, finish.x + 1):
+			var cell := Vector2i(x, y)
+			if astar.is_in_boundsv(cell) and world_rect.has_point(cell_to_world(cell)):
+				result.append(cell)
+	return result

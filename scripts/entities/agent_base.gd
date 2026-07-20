@@ -45,6 +45,11 @@ func follow_path(delta: float, speed_multiplier: float = 1.0) -> bool:
 	if path_index >= current_path.size():
 		velocity = Vector2.ZERO
 		return true
+	if not navigation_service.is_position_walkable(current_path[path_index]):
+		set_destination(destination, true)
+		if path_index >= current_path.size():
+			velocity = Vector2.ZERO
+			return true
 	var target: Vector2 = current_path[path_index]
 	var offset := target - global_position
 	if offset.length() < 10.0:
