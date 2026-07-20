@@ -15,6 +15,8 @@ O projeto usa **Godot 4.6+ com GDScript**. Godot foi escolhido por oferecer um f
 - zumbis que vagam, percebem, perseguem e infectam civis;
 - policiais posicionáveis que patrulham, mantêm distância e neutralizam zumbis;
 - zonas de evacuação que atraem civis saudáveis e contabilizam resgates;
+- barricadas giráveis que bloqueiam rotas e podem ser destruídas por zumbis;
+- pânico que se espalha localmente e formação leve de grupos civis;
 - contadores, relógio, pausa, velocidades 1×/2×/4× e reinício;
 - índice espacial e decisões em intervalos para evitar buscas globais a cada quadro.
 
@@ -28,7 +30,7 @@ O projeto usa **Godot 4.6+ com GDScript**. Godot foi escolhido por oferecer um f
    godot --path .
    ```
 
-Selecione uma ferramenta nos painéis laterais e clique no mapa: **Gás infeccioso** espalha a infecção, **Policial** posiciona uma unidade autônoma e **Zona de evacuação** cria uma área temporária com capacidade para dez civis.
+Selecione uma ferramenta nos painéis laterais e clique no mapa: **Gás infeccioso** espalha a infecção, **Policial** posiciona uma unidade autônoma, **Zona de evacuação** cria uma área temporária com capacidade para dez civis e **Barricada** bloqueia fisicamente uma rota.
 
 Controles:
 
@@ -37,6 +39,7 @@ Controles:
 - roda do mouse: zoom;
 - clique esquerdo: usar a ferramenta selecionada;
 - `Esc`: cancelar a ferramenta;
+- `Q`: girar a prévia da barricada;
 - `Espaço`: pausar/continuar;
 - `1`, `2`, `4`: velocidade da simulação;
 - `R`: reiniciar.
@@ -49,7 +52,7 @@ Os testes de lógica não dependem de interface:
 godot --headless --path . --script res://tests/test_runner.gd
 ```
 
-O teste integrado executa a cena real, cria a população, transforma um civil e verifica o combate:
+O teste integrado executa a cena real e verifica barricadas, pânico, grupos, evacuação, transformação e combate:
 
 ```powershell
 godot --headless --path . --script res://tests/integration_runner.gd
@@ -71,7 +74,7 @@ Ela será salva na pasta de dados do usuário do projeto, informada no terminal.
 
 ## Versão atual
 
-**0.2 — Operação Resgate:** adiciona zonas de evacuação temporárias, busca autônoma de abrigo, embarque interrompível, capacidade limitada e contabilização real de civis resgatados.
+**0.3 — Contenção e Pânico:** adiciona barricadas com navegação dinâmica e destruição por zumbis, propagação local de pânico, agrupamento civil e indicadores na interface.
 
 ## Arquitetura
 

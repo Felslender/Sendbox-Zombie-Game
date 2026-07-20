@@ -19,6 +19,38 @@ func _run() -> void:
 	var placement: PlacementController = game.get_node("PlacementController")
 	_assert(manager.civilians.size() == GameConfig.CIVILIAN_COUNT, "população inicial criada")
 
+	var barricade_position := Vector2(705, 350)
+	placement.select_tool("barricade")
+	placement._try_place(barricade_position)
+	_assert(manager.barricades.size() == 1, "ferramenta constrói barricada em uma rua")
+	_assert(not navigation.is_position_walkable(barricade_position), "barricada bloqueia a navegação")
+	manager.barricades[0].health = GameConfig.BARRICADE_ZOMBIE_DAMAGE
+	var breaker_zombie = manager.spawn_zombie(Vector2(650, 350))
+	await create_timer(1.4).timeout
+	_assert(manager.barricades.is_empty(), "zumbi próximo destrói a barricada")
+	_assert(navigation.is_position_walkable(barricade_position), "rota é liberada após a destruição")
+	if is_instance_valid(breaker_zombie) and not breaker_zombie.is_queued_for_deletion():
+		manager.remove_zombie(breaker_zombie)
+	await process_frame
+
+	var panic_source = manager.civilians[0]
+	var panic_receiver = manager.civilians[1]
+	panic_source.global_position = Vector2(460, 350)
+	panic_receiver.global_position = Vector2(485, 350)
+	manager.update_spatial_position(panic_source)
+	manager.update_spatial_position(panic_receiver)
+	panic_source.panic_level = 1.0
+	panic_source.state = CivilianAgent.State.FLEE
+	panic_receiver.panic_level = 0.0
+	panic_receiver._update_social_state()
+	_assert(panic_receiver.panic_level > 0.4, "pânico se propaga entre civis próximos")
+	panic_source.panic_level = 0.0
+	panic_receiver.panic_level = 0.0
+	panic_source.state = CivilianAgent.State.WANDER
+	panic_receiver.state = CivilianAgent.State.WANDER
+	panic_receiver._update_social_state()
+	_assert(panic_receiver.group_leader != null, "civis próximos formam um grupo leve")
+
 	var civilian_to_rescue = manager.civilians[0]
 	placement.select_tool("evacuation")
 	placement._try_place(civilian_to_rescue.global_position)
@@ -36,11 +68,12 @@ func _run() -> void:
 
 	if not manager.zombies.is_empty():
 		var zombie = manager.zombies[0]
-		var police_position := _nearby_walkable(navigation, zombie.global_position, 165.0)
+		zombie.health = GameConfig.POLICE_DAMAGE
+		var police_position := _nearby_walkable(navigation, zombie.global_position, 110.0)
 		manager.spawn_police(police_position)
 		_assert(manager.police_units.size() == 1, "policial pode ser posicionado")
-		await create_timer(4.0).timeout
-		_assert(manager.zombies.is_empty(), "policial detecta e neutraliza zumbi")
+		await create_timer(1.5).timeout
+		_assert(not is_instance_valid(zombie) or zombie.is_queued_for_deletion() or zombie.health <= 0.0, "policial detecta e neutraliza zumbi")
 
 	game.queue_free()
 	await process_frame

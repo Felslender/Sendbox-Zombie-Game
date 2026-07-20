@@ -1,5 +1,17 @@
 # Histórico de versões
 
+## 0.3 — Contenção e Pânico
+
+- ferramenta Barricada no painel de Defesa, com rotação pela tecla `Q`;
+- até oito barricadas simultâneas, cada uma com vida configurável;
+- células A* bloqueadas e liberadas dinamicamente sem afetar obstáculos estáticos;
+- zumbis detectam, atacam e destroem barricadas próximas;
+- pânico aumenta diante do perigo, modifica movimento e tempo de espera;
+- pânico se espalha somente entre civis próximos por meio do índice espacial;
+- civis tranquilos próximos formam pequenos grupos sem ciclos de liderança;
+- medidores de pânico global, recarga e quantidade de barricadas;
+- testes de bloqueio dinâmico, destruição, propagação social e agrupamento.
+
 ## 0.2 — Operação Resgate
 
 - ferramenta Zona de Evacuação no painel de Defesa;

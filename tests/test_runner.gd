@@ -28,6 +28,16 @@ func _test_navigation() -> void:
 	_assert(path.size() > 2, "A* deve contornar um edifício")
 	for point in path:
 		_assert(navigation.is_position_walkable(point), "todos os pontos da rota devem ser válidos")
+	var dynamic_rect := Rect2(Vector2(424, 338), GameConfig.BARRICADE_SIZE)
+	_assert(navigation.can_place_dynamic_obstacle(dynamic_rect), "rua deve aceitar obstáculo dinâmico")
+	_assert(navigation.add_dynamic_obstacle(1001, dynamic_rect), "obstáculo dinâmico deve ser registrado")
+	_assert(not navigation.is_position_walkable(dynamic_rect.get_center()), "obstáculo dinâmico deve bloquear a grade")
+	var detour := navigation.find_path(Vector2(400, 350), Vector2(520, 350))
+	_assert(not detour.is_empty(), "A* deve recalcular rota ao redor da barricada")
+	for point in detour:
+		_assert(navigation.is_position_walkable(point), "desvio dinâmico não pode atravessar a barricada")
+	navigation.remove_dynamic_obstacle(1001)
+	_assert(navigation.is_position_walkable(dynamic_rect.get_center()), "remoção deve liberar novamente a grade")
 	navigation.queue_free()
 
 func _test_spatial_index() -> void:
@@ -53,6 +63,8 @@ func _test_configuration() -> void:
 	_assert(GameConfig.POLICE_ATTACK_RANGE > GameConfig.POLICE_SAFE_RANGE, "alcance de ataque deve permitir distância segura")
 	_assert(GameConfig.EVACUATION_CAPACITY > 0, "zona de evacuação deve ter capacidade")
 	_assert(GameConfig.EVACUATION_MAX_ZONES >= 1, "ao menos uma zona de evacuação deve ser permitida")
+	_assert(GameConfig.BARRICADE_HEALTH > GameConfig.BARRICADE_ZOMBIE_DAMAGE, "barricada deve resistir a mais de um ataque")
+	_assert(GameConfig.PANIC_SPREAD_RADIUS > GameConfig.PANIC_GROUP_RADIUS, "pânico deve se espalhar além do grupo imediato")
 
 func _assert(condition: bool, description: String) -> void:
 	if condition:
