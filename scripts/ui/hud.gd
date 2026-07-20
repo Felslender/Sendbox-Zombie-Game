@@ -7,8 +7,10 @@ var stats_label: Label
 var feedback_label: Label
 var gas_button: Button
 var police_button: Button
+var evacuation_button: Button
 var gas_cooldown_label: Label
 var police_cooldown_label: Label
+var evacuation_cooldown_label: Label
 var pause_button: Button
 var speed_buttons: Dictionary = {}
 var feedback_timer := 0.0
@@ -31,8 +33,10 @@ func _process(delta: float) -> void:
 		return
 	var gas_remaining := placement_controller.cooldown_remaining("gas")
 	var police_remaining := placement_controller.cooldown_remaining("police")
+	var evacuation_remaining := placement_controller.cooldown_remaining("evacuation")
 	gas_cooldown_label.text = "PRONTO" if gas_remaining <= 0.0 else "RECARGA  %.1fs" % gas_remaining
 	police_cooldown_label.text = "PRONTO" if police_remaining <= 0.0 else "REFORÇO  %.1fs" % police_remaining
+	evacuation_cooldown_label.text = "PRONTO" if evacuation_remaining <= 0.0 else "CONTATO  %.1fs" % evacuation_remaining
 	if feedback_timer > 0.0:
 		feedback_timer -= delta
 		if feedback_timer <= 0.0:
@@ -134,6 +138,13 @@ func _build_interface() -> void:
 	police_cooldown_label = _make_label("PRONTO", 12, Color("#7fb0ff"))
 	defense_column.add_child(police_cooldown_label)
 	defense_column.add_child(_make_label("Alcance: 185 m\nDano: 34\nCadência: 0,7 s\nPatrulha automática", 13, Color("#a8b2c2")))
+	evacuation_button = _make_button("H  ZONA DE EVACUAÇÃO")
+	evacuation_button.custom_minimum_size.y = 48
+	evacuation_button.pressed.connect(func(): placement_controller.select_tool("evacuation"))
+	defense_column.add_child(evacuation_button)
+	evacuation_cooldown_label = _make_label("PRONTO", 12, Color("#62e6b0"))
+	defense_column.add_child(evacuation_cooldown_label)
+	defense_column.add_child(_make_label("Capacidade: 10 civis\nDuração: 55 s · Máx.: 2", 12, Color("#9bcaba")))
 	var spacer_right := Control.new()
 	spacer_right.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	defense_column.add_child(spacer_right)
@@ -168,6 +179,7 @@ func _on_tool_changed(tool_name: String) -> void:
 	selected_tool = tool_name
 	gas_button.modulate = Color("#c9ff70") if tool_name == "gas" else Color.WHITE
 	police_button.modulate = Color("#8ab9ff") if tool_name == "police" else Color.WHITE
+	evacuation_button.modulate = Color("#75efbd") if tool_name == "evacuation" else Color.WHITE
 
 func _show_feedback(message: String, is_error: bool) -> void:
 	if feedback_label == null:

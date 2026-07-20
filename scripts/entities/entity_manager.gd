@@ -9,6 +9,7 @@ var spatial_index := SpatialIndex.new()
 var civilians: Array = []
 var zombies: Array = []
 var police_units: Array = []
+var evacuation_system: EvacuationSystem
 var rescued_count := 0
 var metrics_timer := 0.0
 var last_metrics: Dictionary = {}
@@ -16,6 +17,9 @@ var last_metrics: Dictionary = {}
 func setup(navigation: NavigationService, event_bus: SimulationEvents) -> void:
 	navigation_service = navigation
 	events = event_bus
+
+func set_evacuation_system(system: EvacuationSystem) -> void:
+	evacuation_system = system
 
 func spawn_initial_population(count: int) -> void:
 	for index in range(count):
@@ -58,6 +62,22 @@ func remove_zombie(zombie) -> void:
 	_unregister(zombie, zombies)
 	zombie.queue_free()
 
+func rescue_civilian(civilian, zone: EvacuationZone) -> void:
+	if not is_instance_valid(civilian) or civilian.is_queued_for_deletion():
+		return
+	if is_instance_valid(zone):
+		zone.complete_rescue()
+	_unregister(civilian, civilians)
+	civilian.state = CivilianAgent.State.RESCUED
+	civilian.stop_moving()
+	rescued_count += 1
+	events.feedback_requested.emit("Civil resgatado com sucesso", false)
+	var tween: Tween = civilian.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(civilian, "scale", Vector2(0.15, 0.15), 0.4)
+	tween.tween_property(civilian, "modulate:a", 0.0, 0.4)
+	tween.chain().tween_callback(civilian.queue_free)
+
 func update_spatial_position(entity: Node2D) -> void:
 	if is_instance_valid(entity) and not entity.is_queued_for_deletion():
 		spatial_index.update(entity)
@@ -79,6 +99,11 @@ func find_nearest_healthy(position: Vector2, radius: float):
 
 func get_nearby(position: Vector2, radius: float, kind: String = "") -> Array:
 	return spatial_index.nearby(position, radius, kind)
+
+func find_nearest_evacuation(position: Vector2):
+	if evacuation_system == null:
+		return null
+	return evacuation_system.nearest_available_zone(position)
 
 func publish_metrics(simulation_time: float) -> void:
 	metrics_timer -= get_process_delta_time()

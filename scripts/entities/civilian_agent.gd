@@ -6,6 +6,8 @@ enum State {
 	IDLE,
 	INVESTIGATE,
 	FLEE,
+	EVACUATING,
+	RESCUING,
 	INFECTED,
 	TRANSFORMING,
 	RESCUED,
@@ -20,6 +22,8 @@ var incubation_remaining := 0.0
 var incubation_total := 0.0
 var transforming_remaining := 0.0
 var personality_caution := 1.0
+var assigned_evacuation_zone
+var rescue_remaining := 0.0
 
 func setup(manager, navigation: NavigationService, start_position: Vector2) -> void:
 	entity_kind = "civilian"
@@ -32,6 +36,17 @@ func setup(manager, navigation: NavigationService, start_position: Vector2) -> v
 
 func _physics_process(delta: float) -> void:
 	if state == State.REMOVED or state == State.RESCUED:
+		return
+	if state == State.RESCUING:
+		if not _is_valid_evacuation_zone(assigned_evacuation_zone):
+			assigned_evacuation_zone = null
+			state = State.WANDER
+			_choose_wander_destination()
+			return
+		rescue_remaining -= delta
+		queue_redraw()
+		if rescue_remaining <= 0.0:
+			entity_manager.rescue_civilian(self, assigned_evacuation_zone)
 		return
 	if state == State.TRANSFORMING:
 		transforming_remaining -= delta
@@ -71,6 +86,13 @@ func _physics_process(delta: float) -> void:
 			if follow_path(delta, 0.72) or state_timer <= 0.0:
 				state = State.INFECTED if is_infected else State.WANDER
 				_choose_wander_destination()
+		State.EVACUATING:
+			if not _is_valid_evacuation_zone(assigned_evacuation_zone):
+				assigned_evacuation_zone = null
+				state = State.WANDER
+				_choose_wander_destination()
+			elif global_position.distance_to(assigned_evacuation_zone.global_position) <= 24.0 or follow_path(delta, 1.08):
+				_begin_rescue()
 		_:
 			if follow_path(delta):
 				_begin_idle()
@@ -78,6 +100,9 @@ func _physics_process(delta: float) -> void:
 func infect(incubation: float = GameConfig.GAS_INCUBATION) -> bool:
 	if is_infected or state in [State.TRANSFORMING, State.REMOVED, State.RESCUED]:
 		return false
+	if state == State.RESCUING and _is_valid_evacuation_zone(assigned_evacuation_zone):
+		assigned_evacuation_zone.cancel_reservation()
+	assigned_evacuation_zone = null
 	is_infected = true
 	incubation_total = incubation * randf_range(0.86, 1.15)
 	incubation_remaining = incubation_total
@@ -90,6 +115,7 @@ func _decide() -> void:
 	var danger_radius := GameConfig.CIVILIAN_DANGER_RADIUS * personality_caution
 	var danger = entity_manager.find_nearest(global_position, danger_radius, "zombie", self)
 	if danger != null:
+		_cancel_evacuation()
 		state = State.FLEE
 		_choose_flee_destination(danger.global_position)
 		return
@@ -99,6 +125,23 @@ func _decide() -> void:
 		state_timer = randf_range(0.7, 1.3)
 		var sideways: Vector2 = (global_position - suspicious.global_position).normalized().rotated(randf_range(-0.7, 0.7))
 		set_destination(global_position + sideways * 65.0, true)
+		return
+
+	if not is_infected:
+		var evacuation_zone = entity_manager.find_nearest_evacuation(global_position)
+		if evacuation_zone != null:
+			if assigned_evacuation_zone != evacuation_zone or state != State.EVACUATING:
+				assigned_evacuation_zone = evacuation_zone
+				state = State.EVACUATING
+				set_destination(evacuation_zone.global_position, true)
+			elif route_refresh_timer <= 0.0:
+				set_destination(evacuation_zone.global_position, true)
+			return
+
+	if state == State.EVACUATING:
+		assigned_evacuation_zone = null
+		state = State.WANDER
+		_choose_wander_destination()
 	elif state == State.FLEE:
 		state = State.INFECTED if is_infected else State.WANDER
 		_choose_wander_destination()
@@ -133,6 +176,30 @@ func _begin_idle() -> void:
 	state_timer = randf_range(0.7, 2.5)
 	stop_moving()
 
+func _begin_rescue() -> void:
+	if not _is_valid_evacuation_zone(assigned_evacuation_zone):
+		assigned_evacuation_zone = null
+		state = State.WANDER
+		_choose_wander_destination()
+		return
+	if not assigned_evacuation_zone.reserve_civilian():
+		assigned_evacuation_zone = null
+		state = State.WANDER
+		_choose_wander_destination()
+		return
+	state = State.RESCUING
+	rescue_remaining = GameConfig.EVACUATION_BOARDING_TIME
+	stop_moving()
+	queue_redraw()
+
+func _cancel_evacuation() -> void:
+	if state == State.RESCUING and _is_valid_evacuation_zone(assigned_evacuation_zone):
+		assigned_evacuation_zone.cancel_reservation()
+	assigned_evacuation_zone = null
+
+func _is_valid_evacuation_zone(zone) -> bool:
+	return zone != null and is_instance_valid(zone) and not zone.is_queued_for_deletion() and zone.active
+
 func _draw() -> void:
 	super._draw()
 	if is_infected and incubation_total > 0.0:
@@ -141,3 +208,8 @@ func _draw() -> void:
 	if state == State.FLEE:
 		draw_line(Vector2(-3, -14), Vector2(0, -20), Color.WHITE, 2.0)
 		draw_line(Vector2(3, -14), Vector2(0, -20), Color.WHITE, 2.0)
+	elif state == State.EVACUATING:
+		draw_arc(Vector2.ZERO, radius + 4.0, 0.0, TAU, 18, GameConfig.COLORS.evacuation, 2.0)
+	elif state == State.RESCUING:
+		var rescue_progress := 1.0 - clampf(rescue_remaining / GameConfig.EVACUATION_BOARDING_TIME, 0.0, 1.0)
+		draw_arc(Vector2.ZERO, radius + 5.0, -PI * 0.5, -PI * 0.5 + TAU * rescue_progress, 20, GameConfig.COLORS.evacuation, 3.0)

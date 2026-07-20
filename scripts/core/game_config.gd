@@ -30,11 +30,20 @@ const GAS_INCUBATION := 7.0
 const GAS_COOLDOWN := 4.0
 const POLICE_COOLDOWN := 2.0
 
+const EVACUATION_RADIUS := 78.0
+const EVACUATION_ATTRACTION_RADIUS := 620.0
+const EVACUATION_CAPACITY := 10
+const EVACUATION_BOARDING_TIME := 1.25
+const EVACUATION_DURATION := 55.0
+const EVACUATION_COOLDOWN := 8.0
+const EVACUATION_MAX_ZONES := 2
+
 const COLORS := {
 	"civilian": Color("#52d9e8"),
 	"infected": Color("#e3b341"),
 	"zombie": Color("#79d34d"),
 	"police": Color("#5b8cff"),
+	"evacuation": Color("#62e6b0"),
 	"building": Color("#27343d"),
 	"building_roof": Color("#354650"),
 	"road": Color("#303941"),

@@ -6,6 +6,7 @@ const HUD_SCRIPT := preload("res://scripts/ui/hud.gd")
 @onready var navigation_service = $NavigationService
 @onready var entity_manager = $EntityManager
 @onready var infection_system = $InfectionSystem
+@onready var evacuation_system = $EvacuationSystem
 @onready var placement_controller = $PlacementController
 
 var simulation_time := 0.0
@@ -16,7 +17,9 @@ func _ready() -> void:
 	navigation_service.setup(GameConfig.MAP_SIZE, GameConfig.obstacle_rects())
 	entity_manager.setup(navigation_service, events)
 	infection_system.setup(entity_manager, events)
-	placement_controller.setup(navigation_service, entity_manager, infection_system, events)
+	evacuation_system.setup(entity_manager, events)
+	entity_manager.set_evacuation_system(evacuation_system)
+	placement_controller.setup(navigation_service, entity_manager, infection_system, evacuation_system, events)
 	hud = HUD_SCRIPT.new()
 	add_child(hud)
 	hud.setup(events, placement_controller)
