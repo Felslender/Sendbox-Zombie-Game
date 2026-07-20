@@ -7,6 +7,9 @@ func _capture() -> void:
 	var scene: PackedScene = load("res://scenes/main.tscn")
 	var game = scene.instantiate()
 	root.add_child(game)
+	await process_frame
+	var evacuation: EvacuationSystem = game.get_node("EvacuationSystem")
+	evacuation.deploy_zone(Vector2(705, 350))
 	for frame in range(20):
 		await process_frame
 	var image := root.get_viewport().get_texture().get_image()

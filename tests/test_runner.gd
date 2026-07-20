@@ -51,6 +51,8 @@ func _test_configuration() -> void:
 	_assert(GameConfig.CIVILIAN_COUNT >= 30, "MVP deve iniciar com pelo menos 30 civis")
 	_assert(GameConfig.GAS_INCUBATION > 0.0, "incubação deve ser positiva")
 	_assert(GameConfig.POLICE_ATTACK_RANGE > GameConfig.POLICE_SAFE_RANGE, "alcance de ataque deve permitir distância segura")
+	_assert(GameConfig.EVACUATION_CAPACITY > 0, "zona de evacuação deve ter capacidade")
+	_assert(GameConfig.EVACUATION_MAX_ZONES >= 1, "ao menos uma zona de evacuação deve ser permitida")
 
 func _assert(condition: bool, description: String) -> void:
 	if condition:

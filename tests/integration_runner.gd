@@ -15,7 +15,18 @@ func _run() -> void:
 
 	var manager: EntityManager = game.get_node("EntityManager")
 	var navigation: NavigationService = game.get_node("NavigationService")
+	var evacuation: EvacuationSystem = game.get_node("EvacuationSystem")
+	var placement: PlacementController = game.get_node("PlacementController")
 	_assert(manager.civilians.size() == GameConfig.CIVILIAN_COUNT, "população inicial criada")
+
+	var civilian_to_rescue = manager.civilians[0]
+	placement.select_tool("evacuation")
+	placement._try_place(civilian_to_rescue.global_position)
+	_assert(evacuation.active_zone_count() == 1, "ferramenta cria zona de evacuação em área válida")
+	_assert(placement.evacuation_cooldown > 0.0, "ferramenta de evacuação entra em recarga")
+	await create_timer(3.0).timeout
+	_assert(manager.rescued_count >= 1, "civil alcança a zona e é resgatado")
+	_assert(manager.civilians.size() <= GameConfig.CIVILIAN_COUNT - 1, "civil resgatado sai da população ativa")
 
 	var civilian = manager.civilians[0]
 	var outbreak_position: Vector2 = civilian.global_position

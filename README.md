@@ -14,6 +14,7 @@ O projeto usa **Godot 4.6+ com GDScript**. Godot foi escolhido por oferecer um f
 - gás infeccioso com prévia, duração, chance, incubação e recarga;
 - zumbis que vagam, percebem, perseguem e infectam civis;
 - policiais posicionáveis que patrulham, mantêm distância e neutralizam zumbis;
+- zonas de evacuação que atraem civis saudáveis e contabilizam resgates;
 - contadores, relógio, pausa, velocidades 1×/2×/4× e reinício;
 - índice espacial e decisões em intervalos para evitar buscas globais a cada quadro.
 
@@ -26,6 +27,8 @@ O projeto usa **Godot 4.6+ com GDScript**. Godot foi escolhido por oferecer um f
    ```powershell
    godot --path .
    ```
+
+Selecione uma ferramenta nos painéis laterais e clique no mapa: **Gás infeccioso** espalha a infecção, **Policial** posiciona uma unidade autônoma e **Zona de evacuação** cria uma área temporária com capacidade para dez civis.
 
 Controles:
 
@@ -65,6 +68,10 @@ godot --path . --script res://tests/visual_capture.gd
 ```
 
 Ela será salva na pasta de dados do usuário do projeto, informada no terminal.
+
+## Versão atual
+
+**0.2 — Operação Resgate:** adiciona zonas de evacuação temporárias, busca autônoma de abrigo, embarque interrompível, capacidade limitada e contabilização real de civis resgatados.
 
 ## Arquitetura
 
