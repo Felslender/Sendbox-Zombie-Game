@@ -1,0 +1,113 @@
+class_name EntityManager
+extends Node2D
+
+const CIVILIAN_SCRIPT := preload("res://scripts/entities/civilian_agent.gd")
+
+var navigation_service: NavigationService
+var events: SimulationEvents
+var spatial_index := SpatialIndex.new()
+var civilians: Array = []
+var zombies: Array = []
+var police_units: Array = []
+var rescued_count := 0
+var metrics_timer := 0.0
+var last_metrics: Dictionary = {}
+
+func setup(navigation: NavigationService, event_bus: SimulationEvents) -> void:
+	navigation_service = navigation
+	events = event_bus
+
+func spawn_initial_population(count: int) -> void:
+	for index in range(count):
+		spawn_civilian(navigation_service.random_walkable_position())
+
+func spawn_civilian(at_position: Vector2):
+	var civilian = CIVILIAN_SCRIPT.new()
+	add_child(civilian)
+	civilian.setup(self, navigation_service, at_position)
+	civilians.append(civilian)
+	spatial_index.add(civilian)
+	return civilian
+
+func transform_civilian(civilian) -> void:
+	if not is_instance_valid(civilian) or civilian.is_queued_for_deletion():
+		return
+	var spawn_position: Vector2 = civilian.global_position
+	_unregister(civilian, civilians)
+	civilian.state = CivilianAgent.State.REMOVED
+	civilian.queue_free()
+	var zombie_script = load("res://scripts/entities/zombie_agent.gd")
+	var zombie = zombie_script.new()
+	add_child(zombie)
+	zombie.setup(self, navigation_service, spawn_position)
+	zombies.append(zombie)
+	spatial_index.add(zombie)
+
+func spawn_police(at_position: Vector2):
+	var police_script = load("res://scripts/entities/police_agent.gd")
+	var officer = police_script.new()
+	add_child(officer)
+	officer.setup(self, navigation_service, at_position)
+	police_units.append(officer)
+	spatial_index.add(officer)
+	return officer
+
+func remove_zombie(zombie) -> void:
+	if not is_instance_valid(zombie) or zombie.is_queued_for_deletion():
+		return
+	_unregister(zombie, zombies)
+	zombie.queue_free()
+
+func update_spatial_position(entity: Node2D) -> void:
+	if is_instance_valid(entity) and not entity.is_queued_for_deletion():
+		spatial_index.update(entity)
+
+func find_nearest(position: Vector2, radius: float, kind: String, exclude: Node = null):
+	return spatial_index.nearest(position, radius, kind, exclude)
+
+func find_nearest_healthy(position: Vector2, radius: float):
+	var best = null
+	var best_distance_squared := radius * radius
+	for civilian in spatial_index.nearby(position, radius, "civilian"):
+		if civilian.is_infected:
+			continue
+		var distance_squared := position.distance_squared_to(civilian.global_position)
+		if distance_squared < best_distance_squared:
+			best = civilian
+			best_distance_squared = distance_squared
+	return best
+
+func get_nearby(position: Vector2, radius: float, kind: String = "") -> Array:
+	return spatial_index.nearby(position, radius, kind)
+
+func publish_metrics(simulation_time: float) -> void:
+	metrics_timer -= get_process_delta_time()
+	if metrics_timer > 0.0:
+		return
+	metrics_timer = 0.2
+	_cleanup_arrays()
+	var infected := 0
+	for civilian in civilians:
+		if civilian.is_infected:
+			infected += 1
+	var metrics := {
+		"healthy": civilians.size() - infected,
+		"infected": infected,
+		"zombies": zombies.size(),
+		"rescued": rescued_count,
+		"defense": police_units.size(),
+		"time": simulation_time,
+		"fps": Engine.get_frames_per_second(),
+	}
+	if metrics != last_metrics:
+		last_metrics = metrics
+		events.metrics_changed.emit(metrics)
+
+func _unregister(entity, collection: Array) -> void:
+	spatial_index.remove(entity)
+	collection.erase(entity)
+
+func _cleanup_arrays() -> void:
+	civilians = civilians.filter(func(entity): return is_instance_valid(entity) and not entity.is_queued_for_deletion())
+	zombies = zombies.filter(func(entity): return is_instance_valid(entity) and not entity.is_queued_for_deletion())
+	police_units = police_units.filter(func(entity): return is_instance_valid(entity) and not entity.is_queued_for_deletion())
