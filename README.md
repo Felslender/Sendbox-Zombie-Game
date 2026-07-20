@@ -46,11 +46,25 @@ Os testes de lógica não dependem de interface:
 godot --headless --path . --script res://tests/test_runner.gd
 ```
 
+O teste integrado executa a cena real, cria a população, transforma um civil e verifica o combate:
+
+```powershell
+godot --headless --path . --script res://tests/integration_runner.gd
+```
+
 Para validar que todas as cenas e scripts carregam:
 
 ```powershell
 godot --headless --path . --editor --quit
 ```
+
+Uma captura de fumaça visual também pode ser produzida (requer driver gráfico, portanto sem `--headless`):
+
+```powershell
+godot --path . --script res://tests/visual_capture.gd
+```
+
+Ela será salva na pasta de dados do usuário do projeto, informada no terminal.
 
 ## Arquitetura
 
